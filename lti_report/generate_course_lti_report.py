@@ -76,12 +76,6 @@ def get_course_lti_tab(account, enrollment_term_ids):
                         # added to output dataframe
                         global_pd = global_pd.append(course_dict, ignore_index=True)
 
-def get_sub_account_recursively(account, enrollment_term_ids):
-    subaccounts = account.get_subaccounts()
-    for sa in subaccounts:
-        get_course_lti_tab(sa, enrollment_term_ids)
-        get_sub_account_recursively(sa, enrollment_term_ids)
-
 # Initialize a new Canvas object
 canvas = Canvas(API_URL, API_KEY)
 accounts = canvas.get_accounts()
@@ -90,7 +84,6 @@ accounts = canvas.get_accounts()
 for account in accounts:
     # get LTI tool in those listed courses
     get_course_lti_tab(account, enrollment_term_ids)
-    get_sub_account_recursively(account, enrollment_term_ids)
 
 # output csv
 global_pd.to_csv(f"./{LTI_TOOL_NAME}lti_tools_report.csv")
