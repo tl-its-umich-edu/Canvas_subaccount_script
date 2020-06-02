@@ -1,4 +1,6 @@
 {
 	"API_URL": "",
-	"API_KEY": ""
+	"API_KEY": "",
+	"LTI_TOOL_NAME": "",
+	"ENROLLMENT_TERM_IDS": [<term_id_in_canvas>,<term_id_in_canvas> ]
 }
