@@ -33,7 +33,7 @@ LTI_TOOL_NAME = ENV["LTI_TOOL_NAME"]
 enrollment_term_ids = ENV["ENROLLMENT_TERM_IDS"] # 127: Fall 2019; 164: Winter 2020; 167: Spring 2020
 
 # create an empty dataframe
-global_pd= pd.DataFrame(columns=('course_name', "course_id", 'term_id', "account_id", "account_name", 'tab_name'))
+global_pd= pd.DataFrame(columns=('course_name', "course_id", "teachers", "term_id", "account_id", "account_name", 'tab_name'))
 
 def get_course_lti_tab(account, enrollment_term_ids):
     """
@@ -43,6 +43,7 @@ def get_course_lti_tab(account, enrollment_term_ids):
 
     print(f"""current account {account}""")
 
+    print(account.id)
     # get all courses in the account
     courses: List[canvasapi.course.Course] = []
     for enrollment_term_id in enrollment_term_ids:
@@ -58,23 +59,44 @@ def get_course_lti_tab(account, enrollment_term_ids):
         print(f'length of courses = {len(courses_list)}')
         # get LTI tool in those sites
         for course in courses_list:
-            print(f"course {course}")
-            for tab in course.get_tabs():
-                tab_label = ""
-                tab_json = json.loads(tab.to_json())
-                if (not "hidden" in tab_json 
-                    or (not tab_json["hidden"])):
-                    tab_label = tab.label.lower()
-                    if LTI_TOOL_NAME == tab_label:
-                        print(f"term id={enrollment_term_id} course={course} tab={tab_label}")
-                        course_dict = {'course_name': course.name, 
-                                    "course_id":course.id, 
-                                    'term_id': enrollment_term_id,
-                                    'account_id': account.id,
-                                    'account_name': account.name,
-                                    'tab_name': tab_label}
-                        # added to output dataframe
-                        global_pd = global_pd.append(course_dict, ignore_index=True)
+            if not course.id in global_pd.course_id.values:
+                # new course id
+                #print(f"course {course}")
+                for tab in course.get_tabs():
+                    tab_label = ""
+                    try:
+                        if not hasattr(tab, "hidden"):
+                            tab_label = tab.label.lower()
+                            if tab_label in LTI_TOOL_NAME:
+                                print(f"term id={enrollment_term_id} course={course} tab={tab_label}")
+                                # get teachers
+                                teacher_str = ""
+                                teachers = course.get_users(enrollment_type=['teacher'])
+                                for teacher in teachers:
+                                    teacher_name = getattr(teacher,'name', "")
+                                    teacher_id = getattr(teacher,'login_id', "")
+                                    teacher_str = teacher_str + teacher_name + "(" + teacher_id + "),"
+                                    print(teacher_str)
+
+                                course_dict = {'course_name': course.name, 
+                                            "course_id":course.id, 
+                                            'term_id': enrollment_term_id,
+                                            'teachers': teacher_str,
+                                            'account_id': account.id,
+                                            'account_name': account.name,
+                                            'tab_name': tab_label}
+                                # added to output dataframe
+                                global_pd = global_pd.append(course_dict, ignore_index=True)
+                                global_pd.to_csv("./lti_tools_report.csv")
+                    except ValueError as e:
+                        print ("not valid json")
+
+def get_sub_account_recursively(account, enrollment_term_ids):
+    print(f"""current account {account} {account.id}""")
+    subaccounts = account.get_subaccounts()
+    for sa in subaccounts:
+        get_sub_account_recursively(sa, enrollment_term_ids)
+        get_course_lti_tab(sa, enrollment_term_ids)
 
 # Initialize a new Canvas object
 canvas = Canvas(API_URL, API_KEY)
@@ -83,8 +105,9 @@ accounts = canvas.get_accounts()
 # search for all Canvas accounts
 for account in accounts:
     # get LTI tool in those listed courses
+    get_sub_account_recursively(account, enrollment_term_ids)
     get_course_lti_tab(account, enrollment_term_ids)
 
 # output csv
-global_pd.to_csv(f"./{LTI_TOOL_NAME}lti_tools_report.csv")
+global_pd.to_csv(f"./lti_tools_report.csv")
 
