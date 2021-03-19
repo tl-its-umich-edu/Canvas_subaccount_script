@@ -30,12 +30,14 @@ except FileNotFoundError:
 # get the API parameters from ENV
 API_URL = ENV["API_URL"]
 API_KEY = ENV["API_KEY"]
+
 # used for login page
 CANVAS_USER = ENV["CANVAS_USER"]
 CANVAS_PASSWORD = ENV["CANVAS_PASSWORD"]
 
 # Initialize the driver
 driver = webdriver.Chrome()
+
 # Open provided link in a browser window using the driver
 driver.get(API_URL +"/login/saml")
 driver.execute_script(f"document.getElementById('login').value = '{CANVAS_USER}';")
@@ -77,7 +79,6 @@ def parse_subaccount_theme(account):
                                             "account_name":account.name, 
                                             'current_theme_name': theme["name"]}
                                     global_pd = global_pd.append(theme_dict, ignore_index=True)
-                                    global_pd.to_csv("./theme_report.csv")
 
 
 # iterating through all subaccounts recursively

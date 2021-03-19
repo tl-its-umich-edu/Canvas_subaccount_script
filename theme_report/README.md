@@ -18,7 +18,3 @@
 
 - execute the script to generate theme_report.csv file:
     `python ./generate_theme_report.py`
-
-
-
-
