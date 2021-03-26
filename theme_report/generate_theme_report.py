@@ -13,10 +13,11 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# parse html of subaccount theme page
-
 
 def parse_subaccount_theme(account, driver, API_URL, report_df):
+    """
+    parse html of subaccount theme page
+    """
     print(f"parse subaccount {account}")
     driver.get(f"{API_URL}/accounts/{account.id}/brand_configs")
     element = WebDriverWait(driver, 30).until(
@@ -48,8 +49,10 @@ def parse_subaccount_theme(account, driver, API_URL, report_df):
     return report_df
 
 
-# iterating through all subaccounts recursively
 def loop_subaccount(account, driver, API_URL, report_df):
+    """
+    iterating through all subaccounts recursively
+    """
     print(f"""current account {account} {account.id}""")
     subaccounts = account.get_subaccounts()
     for sa in subaccounts:
