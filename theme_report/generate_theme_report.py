@@ -1,8 +1,5 @@
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait  # available since 2.4.0
-# available since 2.26.0
-from selenium.webdriver.support import expected_conditions as EC
+from playwright.sync_api import Playwright, sync_playwright
+
 from bs4 import BeautifulSoup
 
 from canvasapi import Canvas
@@ -10,22 +7,17 @@ import pandas as pd
 import os
 import json
 import logging
+import time
 
 logger = logging.getLogger(__name__)
 
 
-def parse_subaccount_theme(account, driver, API_URL, report_df):
+def parse_subaccount_theme(account, page, API_URL, report_df):
     """
     parse html of subaccount theme page
     """
-    print(f"parse subaccount {account}")
-    driver.get(f"{API_URL}/accounts/{account.id}/brand_configs")
-    element = WebDriverWait(driver, 30).until(
-        EC.presence_of_element_located((By.ID, "left-side")))
-    element = driver.find_element_by_xpath('//*')
-    innerHtml = element.get_attribute('innerHTML')
-    soup = BeautifulSoup(innerHtml, features="html.parser")
-
+    page.goto(f"{API_URL}/accounts/{account.id}/brand_configs")
+    soup = BeautifulSoup(page.content(), features="html.parser")
     for script in soup.find_all('script'):
         for content in script.contents:
             if "ENV =" in content:
@@ -40,30 +32,30 @@ def parse_subaccount_theme(account, driver, API_URL, report_df):
                             for theme in env_json["brandConfigStuff"]["sharedBrandConfigs"]:
                                 if (theme["brand_config"] is not None and theme["brand_config"]["md5"] is not None and theme["brand_config"]["md5"] == active_theme_md5):
                                     # find the current theme, and added to output dataframe
-                                    print(theme)
-                                    theme_dict = {'account_id': account.id,
-                                                  "account_name": account.name,
-                                                  'current_theme_name': theme["name"]}
-                                    report_df = report_df.append(
-                                        theme_dict, ignore_index=True)
+                                    theme_df = pd.DataFrame(data={'account_id': [account.id],
+                                                  "account_name": [account.name],
+                                                  'current_theme_name': [theme["name"]]})
+                                    print(f'{account.id};  {account.name}; {theme["name"]}')
+                                    report_df = pd.concat([report_df, theme_df])
     return report_df
 
 
-def loop_subaccount(account, driver, API_URL, report_df):
+def loop_subaccount(account, page, API_URL, report_df):
     """
     iterating through all subaccounts recursively
     """
     print(f"""current account {account} {account.id}""")
     subaccounts = account.get_subaccounts()
     for sa in subaccounts:
-        report_df = loop_subaccount(sa, driver, API_URL, report_df)
-        report_df = parse_subaccount_theme(sa, driver, API_URL, report_df)
-        print(f"{report_df.shape}")
+        # recursively loop subaccount
+        report_df = loop_subaccount(sa, page, API_URL, report_df)
+
+        # get the subaccount theme info
+        report_df = parse_subaccount_theme(sa, page, API_URL, report_df)
 
     return report_df
 
-
-def main():
+def run(playwright: Playwright) -> None:
     # Set up ENV
     CONFIG_PATH = os.path.join(os.path.dirname(
         os.path.abspath(__file__)), './env.json')
@@ -82,36 +74,48 @@ def main():
     # used for login page
     CANVAS_USER = ENV["CANVAS_USER"]
     CANVAS_PASSWORD = ENV["CANVAS_PASSWORD"]
+    print(CANVAS_USER)
+    print(CANVAS_PASSWORD)
 
-    # Initialize the driver
-    driver = webdriver.Chrome()
-
-    # Open provided link in a browser window using the driver
-    driver.get(API_URL + "/login/saml")
-    driver.execute_script(
-        f"document.getElementById('login').value = '{CANVAS_USER}';")
-    driver.execute_script(
-        f"document.getElementById('password').value = '{CANVAS_PASSWORD}';")
-    loginSubmit = driver.find_element_by_id('loginSubmit')
-    loginSubmit.click()
-
-    # create an empty dataframe
-    report_df = pd.DataFrame(
-        columns=('account_id', "account_name", "current_theme_name"))
+    browser = playwright.chromium.launch(headless=False)
+    context = browser.new_context()
+    page = context.new_page()
+    page.goto("https://canvas.it.umich.edu/")
+    page.get_by_role("link", name="U-M Login U-M Weblogin U-M Faculty, Staff, Students and Friends Use your U-M login credentials or Friend account email address and password").click()
+    page.get_by_placeholder("Uniqname or Friend ID").click()
+    page.get_by_placeholder("Uniqname or Friend ID").fill(CANVAS_USER)
+    page.get_by_placeholder("Uniqname or Friend ID").press("Tab")
+    page.get_by_placeholder("Password").fill(CANVAS_PASSWORD)
+    page.get_by_role("button", name="Log In").click()
+    page.frame_locator("#duo_iframe").get_by_role("button", name="Send Me a Push").click()
+    time.sleep(10)
+    page.goto("https://weblogin.umich.edu/idp/profile/SAML2/POST/SSO?execution=e1s2")
+    page.goto("https://shibboleth.umich.edu/idp/profile/SAML2/Redirect/SSO?execution=e1s1&_eventId_proceed=1")
+    page.goto("https://umich.instructure.com/")
+    page.get_by_role("button", name="Admin").click()
+    page.get_by_role("link", name="University of Michigan - Ann Arbor").click()
 
     # Initialize a new Canvas object
     canvas = Canvas(API_URL, API_KEY)
     accounts = canvas.get_accounts()
+    print(accounts)
 
+    # create an empty dataframe
+    report_df = pd.DataFrame(
+    columns=('account_id', "account_name", "current_theme_name"))
+    
     # search for all Canvas accounts
     for account in accounts:
         # get subaccounts
-        report_df = loop_subaccount(account, driver, API_URL, report_df)
-        report_df = parse_subaccount_theme(account, driver, API_URL, report_df)
+        report_df = loop_subaccount(account, page, API_URL, report_df)
+        report_df = parse_subaccount_theme(account, page, API_URL, report_df)
 
-    # output csv
-    report_df.to_csv("./theme_report.csv")
+        # output csv
+        report_df.to_csv("./theme_report.csv")
+        
+    context.close()
+    browser.close()
 
 
-if '__main__' == __name__:
-    main()
+with sync_playwright() as playwright:
+    run(playwright)
