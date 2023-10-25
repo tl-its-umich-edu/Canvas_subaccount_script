@@ -74,9 +74,6 @@ def run(playwright: Playwright) -> None:
     # used for login page
     CANVAS_USER = ENV["CANVAS_USER"]
     CANVAS_PASSWORD = ENV["CANVAS_PASSWORD"]
-    print(CANVAS_USER)
-    print(CANVAS_PASSWORD)
-
     browser = playwright.chromium.launch(headless=False)
     context = browser.new_context()
     page = context.new_page()
