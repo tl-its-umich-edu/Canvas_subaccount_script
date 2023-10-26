@@ -4,13 +4,15 @@ from bs4 import BeautifulSoup
 
 from canvasapi import Canvas
 import pandas as pd
+
 import os
 import json
 import logging
 import time
 
-logger = logging.getLogger(__name__)
+import sys
 
+logging.basicConfig(level=logging.INFO)  # Set the logging level to INFO
 
 def parse_subaccount_theme(account, page, API_URL, report_df):
     """
@@ -35,7 +37,7 @@ def parse_subaccount_theme(account, page, API_URL, report_df):
                                     theme_df = pd.DataFrame(data={'account_id': [account.id],
                                                   "account_name": [account.name],
                                                   'current_theme_name': [theme["name"]]})
-                                    print(f'{account.id};  {account.name}; {theme["name"]}')
+                                    logging.info(f'{account.id};  {account.name}; {theme["name"]}')
                                     report_df = pd.concat([report_df, theme_df])
     return report_df
 
@@ -44,7 +46,7 @@ def loop_subaccount(account, page, API_URL, report_df):
     """
     iterating through all subaccounts recursively
     """
-    print(f"""current account {account} {account.id}""")
+    logging.info(f"""current account {account} {account.id}""")
     subaccounts = account.get_subaccounts()
     for sa in subaccounts:
         # recursively loop subaccount
@@ -63,7 +65,7 @@ def run(playwright: Playwright) -> None:
         with open(CONFIG_PATH) as env_file:
             ENV = json.load(env_file)
     except FileNotFoundError:
-        logger.error(
+        logging.error(
             f'Configuration file could not be found; please add file "{CONFIG_PATH}".')
         ENV = dict()
 
@@ -71,36 +73,32 @@ def run(playwright: Playwright) -> None:
     API_URL = ENV["API_URL"]
     API_KEY = ENV["API_KEY"]
 
-    # used for login page
-    CANVAS_USER = ENV["CANVAS_USER"]
-    CANVAS_PASSWORD = ENV["CANVAS_PASSWORD"]
+    # Initialize a new Canvas object
+    canvas = Canvas(API_URL, API_KEY)
+    response = canvas._Canvas__requester.request(
+        'GET', 
+        _url = canvas._Canvas__requester.original_url + "/login/session_token"
+    )
+    # If response.text is json the return the value session_url
+    if response.text:
+        session_url = response.json().get('session_url')
+        logging.info(f"session_url: {session_url}")
+    else:
+        # Log an error that it couldn't get the response_url
+        logging.error("Error getting session_url")
+        return
+
     browser = playwright.chromium.launch(headless=False)
     context = browser.new_context()
     page = context.new_page()
-    page.goto("https://canvas.it.umich.edu/")
-    page.get_by_role("link", name="U-M Login U-M Weblogin U-M Faculty, Staff, Students and Friends Use your U-M login credentials or Friend account email address and password").click()
-    page.get_by_placeholder("Uniqname or Friend ID").click()
-    page.get_by_placeholder("Uniqname or Friend ID").fill(CANVAS_USER)
-    page.get_by_placeholder("Uniqname or Friend ID").press("Tab")
-    page.get_by_placeholder("Password").fill(CANVAS_PASSWORD)
-    page.get_by_role("button", name="Log In").click()
-    page.frame_locator("#duo_iframe").get_by_role("button", name="Send Me a Push").click()
-    time.sleep(10)
-    page.goto("https://weblogin.umich.edu/idp/profile/SAML2/POST/SSO?execution=e1s2")
-    page.goto("https://shibboleth.umich.edu/idp/profile/SAML2/Redirect/SSO?execution=e1s1&_eventId_proceed=1")
-    page.goto("https://umich.instructure.com/")
+    page.goto(session_url)
     page.get_by_role("button", name="Admin").click()
     page.get_by_role("link", name="University of Michigan - Ann Arbor").click()
-
-    # Initialize a new Canvas object
-    canvas = Canvas(API_URL, API_KEY)
-    accounts = canvas.get_accounts()
-    print(accounts)
-
     # create an empty dataframe
     report_df = pd.DataFrame(
     columns=('account_id', "account_name", "current_theme_name"))
     
+    accounts = canvas.get_accounts()
     # search for all Canvas accounts
     for account in accounts:
         # get subaccounts
