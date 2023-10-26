@@ -57,6 +57,21 @@ def loop_subaccount(account, page, API_URL, report_df):
 
     return report_df
 
+def get_session_url(canvas):
+    response = canvas._Canvas__requester.request(
+        'GET', 
+        _url = canvas._Canvas__requester.original_url + "/login/session_token"
+    )
+    # If response.text is json the return the value session_url
+    if response.text:
+        session_url = response.json().get('session_url')
+        logging.info(f"session_url: {session_url}")
+        return session_url
+    else:
+        # Log an error that it couldn't get the response_url
+        logging.error("Error getting session_url")
+        return None
+
 def run(playwright: Playwright) -> None:
     # Set up ENV
     CONFIG_PATH = os.path.join(os.path.dirname(
@@ -75,18 +90,7 @@ def run(playwright: Playwright) -> None:
 
     # Initialize a new Canvas object
     canvas = Canvas(API_URL, API_KEY)
-    response = canvas._Canvas__requester.request(
-        'GET', 
-        _url = canvas._Canvas__requester.original_url + "/login/session_token"
-    )
-    # If response.text is json the return the value session_url
-    if response.text:
-        session_url = response.json().get('session_url')
-        logging.info(f"session_url: {session_url}")
-    else:
-        # Log an error that it couldn't get the response_url
-        logging.error("Error getting session_url")
-        return
+    session_url = get_session_url(canvas)
 
     browser = playwright.chromium.launch(headless=False)
     context = browser.new_context()
