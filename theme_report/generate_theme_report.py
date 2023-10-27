@@ -65,7 +65,6 @@ def get_session_url(canvas):
     # If response.text is json the return the value session_url
     if response.text:
         session_url = response.json().get('session_url')
-        logging.info(f"session_url: {session_url}")
         return session_url
     else:
         # Log an error that it couldn't get the response_url
