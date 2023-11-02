@@ -1,6 +1,6 @@
 {
 	"API_URL": "",
 	"API_KEY": "",
-	"CANVAS_USER":"",
-	"CANVAS_PASSWORD":""
+	"ROOT_ACCOUNT": "1",
+	"DISABLE_RESOURCES": "true"
 }
