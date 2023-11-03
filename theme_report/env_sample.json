@@ -2,5 +2,6 @@
 	"API_URL": "",
 	"API_KEY": "",
 	"ROOT_ACCOUNT": "1",
-	"DISABLE_RESOURCES": "true"
+	"DISABLE_RESOURCES": "true",
+	"HEADLESS": "false"
 }

@@ -24,12 +24,13 @@ class ThemeReportGenerator:
     canvas: Canvas = None
     page: Page = None
 
-    def __init__(self, api_url: str, api_key: str, root_account: int, disable_resources: bool):
+    def __init__(self, api_url: str, api_key: str, root_account: int, disable_resources: bool, headless_browser: bool):
         # Initialize a new Canvas object
         self.api_url = api_url
         self.api_key = api_key
         self.root_account = root_account
         self.disable_resources = disable_resources
+        self.headless_browser = headless_browser
         self.canvas = Canvas(self.api_url, self.api_key)
 
     # parse html of subaccount theme page
@@ -118,7 +119,7 @@ class ThemeReportGenerator:
     # Will launch a browser and navigate to the subaccount
     def run(self, playwright: Playwright) -> None:
 
-        browser = playwright.chromium.launch(headless=False)
+        browser = playwright.chromium.launch(headless=self.headless_browser)
         context = browser.new_context()
         # Enable request interception.
         context.route('**/*', self.route_handler)
@@ -171,6 +172,7 @@ with sync_playwright() as playwright:
     API_KEY = ENV.get("API_KEY", "your_api_key_here")
     ROOT_ACCOUNT = ENV.get("ROOT_ACCOUNT", 1)
     DISABLE_RESOURCES = ENV.get("DISABLE_RESOURCES", True)
+    HEADLESS_BROWSER = ENV.get("HEADLESS_BROWSER", False)
 
-    generator = ThemeReportGenerator(API_URL, API_KEY, ROOT_ACCOUNT, DISABLE_RESOURCES)
+    generator = ThemeReportGenerator(API_URL, API_KEY, ROOT_ACCOUNT, DISABLE_RESOURCES, HEADLESS_BROWSER)
     generator.run(playwright)
