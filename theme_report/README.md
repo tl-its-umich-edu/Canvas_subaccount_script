@@ -17,5 +17,5 @@
 * `API_URL` (str): Full API URL of the instance where API_KEY was generated starting with https://
 * `API_KEY` (str): API Key generated from Canvas settings for an admin account
 * `ROOT_ACCOUNT` (int): Root account number
-* `DISABLE_RESOURCES` (bool): Set or disable resources retrieval to improve speed
-* `HEADLESS_BROWSER` (bool): Set or disable headless browsing 
+* `DISABLE_RESOURCES` (bool): Set or disable resources retrieval to improve speed (Defaults to true)
+* `HEADLESS_BROWSER` (bool): Set or disable headless browsing (Defaults to false)
