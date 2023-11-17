@@ -1,5 +1,7 @@
 {
 	"API_URL": "",
 	"API_KEY": "",
-	"CANVAS_URL": "https://instructure.com/accounts/"
+	"ROOT_ACCOUNT": "1",
+	"DISABLE_RESOURCES": true,
+	"HEADLESS_BROWSER": false
 }
