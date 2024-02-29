@@ -56,7 +56,9 @@ class ThemeReportGenerator:
                                         # find the current theme, and added to output dataframe
                                         theme_df = pd.DataFrame(data={'account_id': [account.id],
                                                     "account_name": [account.name],
-                                                    'current_theme_name': [theme["name"]]})
+                                                    'current_theme_name': [theme["name"]],
+                                                    'js_overrides': [theme["brand_config"]["js_overrides"]],
+                                                    'css_overrides': [theme["brand_config"]["css_overrides"]]})
                                         logging.info(f'{account.id};  {account.name}; {theme["name"]}')
                                         self.report_df = pd.concat([self.report_df, theme_df])
         return
